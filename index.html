@@ -1,22 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    
+<head>
+
+
     <!-- Google AdSense -->
     <meta name="google-adsense-account" content="ca-pub-7963880628277539">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7963880628277539" crossorigin="anonymous"></script>
-    
-    
+
+
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-PGR4Y0TVNP"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-    
+
       gtag('config', 'G-PGR4Y0TVNP');
     </script>
-    
+
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <title>Chain Reaction</title>
@@ -40,15 +41,16 @@ input{width:min(280px,80vw);text-align:center}textarea{width:min(420px,85vw);hei
 <main>
 <section id="menu" class="s on"><h1>CHAIN<br>REACTION</h1><button data-go="solo">Solo: Human vs Bot</button><button data-go="lobby">Online Multiplayer</button><button data-go="help">Settings &amp; How to Play</button></section>
 <section id="solo" class="s"><h2>Solo</h2><div class="row" id="dif"><button data-d="0">Easy</button><button data-d="1" class="sel">Medium</button><button data-d="2">Hard</button></div><button id="st">Start Game</button><button data-go="menu">Return to Menu</button></section>
-<section id="lobby" class="s"><h2>Online Lobby</h2><input id="nm" placeholder="Your name" maxlength="12" aria-label="Name"><input id="rc" value="CR6" maxlength="12" aria-label="Room code"><div class="row"><button id="cr">Host Room</button><button id="jn">Join Room</button></div>
-<div id="hp" hidden><button id="ai">+ Invite player / reconnect</button><textarea id="oc" readonly placeholder="Invite link appears here"></textarea><div class="row"><button id="co">Copy link</button><button id="so">Share</button></div><textarea id="ia" placeholder="Paste the player's reply code"></textarea><button id="ac2">Accept reply</button></div>
-<div id="gp" hidden><textarea id="ii" placeholder="Paste the host's invite link or code"></textarea><button id="mk">Create reply</button><textarea id="ra" readonly placeholder="Your reply code appears here"></textarea><button id="cr2">Copy reply</button></div>
+<section id="lobby" class="s"><h2>Online Lobby</h2><input id="nm" placeholder="Your name" maxlength="12" aria-label="Name"><input id="rc" value="CR6" maxlength="12" aria-label="Room code"><div class="row"><button id="cr">Host Room</button><button id="jn">Join with Room Code</button></div>
+<details id="adv"><summary>Manual invite (no broker)</summary><div id="hp" hidden><button id="ai">+ Invite player / reconnect</button><textarea id="oc" readonly placeholder="Invite link appears here"></textarea><div class="row"><button id="co">Copy link</button><button id="so">Share</button></div><textarea id="ia" placeholder="Paste the player's reply code"></textarea><button id="ac2">Accept reply</button></div>
+<div id="gp" hidden><textarea id="ii" placeholder="Paste the host's invite link or code"></textarea><button id="mk">Create reply</button><textarea id="ra" readonly placeholder="Your reply code appears here"></textarea><button id="cr2">Copy reply</button></div></details>
 <div id="stat">Not connected</div><div id="pls"></div><div class="row"><button id="rd">Ready</button><button id="sm">Start Match</button><button id="cp">Copy Code</button><button id="lv">Leave Room</button></div></section>
 <section id="game" class="s" style="justify-content:flex-start;gap:4px"><div id="hud"></div><div id="wrap"><canvas id="cv"></canvas></div><div id="info"></div><div class="row" style="padding-bottom:6px"><button id="rs">Restart</button><button data-go="menu">Menu</button></div></section>
 <section id="result" class="s"><h2 id="rt"></h2><div id="rl"></div><div id="rm"></div><div class="row"><button id="pa">Play Again</button><button data-go="menu">Return to Menu</button></div></section>
 <section id="help" class="s"><h2>Settings</h2><label>Music <input id="mv" type="range" min="0" max="1" step=".05"></label><label>Effects <input id="fv" type="range" min="0" max="1" step=".05"></label><label><input id="rm2" type="checkbox" style="width:auto;min-height:0"> Reduced motion</label>
 <div class="pad"><b>How to play:</b> tap an empty cell or one of your own to add an orb. Critical mass = number of neighbours: corners 2, edges 3, centre 4. At critical mass a cell explodes, sending one orb to each neighbour and converting them to your colour. Chains continue until stable. Eliminate everyone else to win.<br><b>Online:</b> run the signaling server (see README), enter its wss:// URL, then one player taps Create Room and the others Join with the same code (2–6 players). Host presses Start once everyone is ready.</div><button data-go="menu">Back</button></section>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 const $=i=>document.getElementById(i),R=9,C=6,COL=['#22e6ff','#ff3df2','#ffd23d','#7c5cff','#3dff9a','#ff6a3d'];
 const CONFIG={ice:[{urls:'stun:stun.l.google.com:19302'}]}; // add TURN: {urls:'turn:host',username:'u',credential:'p'}
@@ -125,7 +127,7 @@ const stat=(m,ok)=>{$('stat').textContent=m;$('stat').style.color=ok?'#3dff9a':'
 function send(p,m){try{if(p&&p.dc&&p.dc.readyState=='open'){m.id=Math.random().toString(36).slice(2);p.dc.send(JSON.stringify(m))}}catch(e){}}
 function bc(m){m.seq=++seq;Object.values(peers).forEach(p=>send(p,m))}
 // Serverless signaling: SDP (with ICE) is compressed into a short code/link shared by copy, share sheet or any chat app.
-let invs={};
+let invs={},pr=null,br=0;
 const b64=u=>btoa(String.fromCharCode(...u)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
 const pipe=async(d,T)=>new Uint8Array(await new Response(new Blob([d]).stream().pipeThrough(new T('deflate-raw'))).arrayBuffer());
 const enc=async o=>b64(await pipe(JSON.stringify(o),CompressionStream));
@@ -140,11 +142,11 @@ async function invite(){try{if(!window.RTCPeerConnection||!window.CompressionStr
  await pc.setLocalDescription(await pc.createOffer());await gather(pc);const c=await enc({id,s:pc.localDescription});
  $('oc').value=location.origin+location.pathname+'#j='+c;stat('Send the link to a player, then paste their reply below',1)}catch(e){stat('Invite failed')}}
 async function accept(){try{const o=await dec($('ia').value),pc=invs[o.id];if(!pc)return stat('Unknown or expired reply');await pc.setRemoteDescription(o.s);delete invs[o.id];$('ia').value='';stat('Connecting to player…')}catch(e){stat('Invalid reply code');sfx('bad')}}
-async function mkReply(){try{const o=await dec($('ii').value);me=o.id;try{sessionStorage.crid=me}catch(e){}const pc=newPc('host');pc.ondatachannel=e=>wire('host',e.channel);
+async function mkReply(){try{const o=await dec($('ii').value);me=o.id;br=0;try{sessionStorage.crid=me}catch(e){}const pc=newPc('host');pc.ondatachannel=e=>wire('host',e.channel);
  await pc.setRemoteDescription(o.s);await pc.setLocalDescription(await pc.createAnswer());await gather(pc);$('ra').value=await enc({id:o.id,s:pc.localDescription});stat('Send this reply code back to the host',1)}catch(e){stat('Invalid invite code');sfx('bad')}}
 function wire(id,dc){const p=peers[id]||(peers[id]={});p.dc=dc;if(!host)peers.host=p;
  dc.onopen=()=>{retry=0;if(host){sfx('join')}else{stat('Connected to host (DataChannel open)',1);sfx('ok');send(p,{t:'hello',name:$('nm').value||'Player'})}};
- dc.onclose=()=>{if(host){const q=G&&G.pl.find(x=>x.id==id);if(q){q.conn=0;sfx('lost');if(G.phase=='lobby')G.pl=G.pl.filter(x=>x!=q);else skipOff();bc({t:'snap',G});rl();hud()}}else if(!leaving){stat('Connection lost. Ask the host for a reconnect invite and paste it here.');sfx('lost');$('gp').hidden=0;banner()}};
+ dc.onclose=()=>{if(host){const q=G&&G.pl.find(x=>x.id==id);if(q){q.conn=0;sfx('lost');if(G.phase=='lobby')G.pl=G.pl.filter(x=>x!=q);else skipOff();bc({t:'snap',G});rl();hud()}}else if(!leaving){stat('Connection lost'+(br?', rejoining…':'. Ask the host for a reconnect invite.'));sfx('lost');banner();br?rejoin():$('gp').hidden=0}};
  dc.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch{return}if(!m||typeof m.t!='string')return;if(seen.has(m.id))return;seen.add(m.id);if(seen.size>500)seen.clear();host?hostMsg(id,m):guestMsg(m)}}
 function hostMsg(id,m){const p=peers[id];if(m.t=='hello'){let q=G.pl.find(x=>x.id==id);if(q){q.conn=1;q.name=esc(m.name||q.name).slice(0,12);sfx('ok')}else if(G.phase=='lobby'&&G.pl.length<6)G.pl.push({id,name:esc(m.name||'Player').slice(0,12),color:COL[G.pl.length],ready:0,conn:1,alive:1});else return send(p,{t:'err',m:'Room full or match in progress'});bc({t:'snap',G});rl();hud()}
  else if(m.t=='rdy'){const q=G.pl.find(x=>x.id==id);if(q&&G.phase=='lobby'){q.ready=!q.ready;bc({t:'snap',G});rl()}}
@@ -158,16 +160,27 @@ function startMatch(){if(!host||!G)return;const ok=G.pl.length>=2&&G.pl.every(p=
 function skipOff(){if(G&&G.phase=='play'&&!G.over&&!G.pl[G.turn].conn)nextTurn()}
 function rl(){if(!G||!G.pl)return $('pls').innerHTML='';$('pls').innerHTML=G.pl.map((p,k)=>`<div><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${p.id==me?' (you)':''}${k==0?' ★host':''} · ${p.ready?'Ready':'Not ready'} · ${p.conn?'🟢':'🔴'}</div>`).join('');$('sm').style.display=host?'':'none';$('rd').style.display=host?'none':''}
 const lobbyMode=h=>{leave();online=1;host=h;$('hp').hidden=!h;$('gp').hidden=h;leaving=0};
-$('cr').onclick=()=>{lobbyMode(1);G={phase:'lobby',pl:[{id:me,name:esc($('nm').value||'Host'),color:COL[0],ready:1,conn:1,alive:1}],ver:0,cells:[],turn:0,moves:0};try{localStorage.crnm=$('nm').value}catch(e){}stat('Hosting room '+($('rc').value||'CR6')+'. Tap Invite for each player.',1);rl()};
-$('jn').onclick=()=>{lobbyMode(0);try{localStorage.crnm=$('nm').value}catch(e){}stat('Paste the host invite, then send back your reply code')};
+const rcode=()=>($('rc').value.toUpperCase().replace(/[^A-Z0-9]/g,'')||'CR6').slice(0,12),pid=c=>'chainrx-'+c.toLowerCase();
+function pj(conn){const d={get readyState(){return conn.open?'open':'closed'},send:x=>conn.send(x),close:()=>conn.close()};conn.on('open',()=>d.onopen&&d.onopen());conn.on('close',()=>d.onclose&&d.onclose());conn.on('error',()=>{});conn.on('data',x=>d.onmessage&&d.onmessage({data:x}));return d}
+const nm=()=>{try{localStorage.crnm=$('nm').value}catch(e){}return esc($('nm').value||'Player')};
+$('cr').onclick=()=>{lobbyMode(1);br=1;const code=rcode();$('rc').value=code;G={phase:'lobby',pl:[{id:me,name:nm(),color:COL[0],ready:1,conn:1,alive:1}],ver:0,cells:[],turn:0,moves:0};rl();
+ if(!window.Peer)return stat('Room broker unavailable. Use Manual invite below.');stat('Opening room '+code+'…');
+ pr=new Peer(pid(code),{config:{iceServers:CONFIG.ice}});pr.on('open',()=>stat('Room '+code+' is open. Share the code with friends.',1));
+ pr.on('error',e=>stat(e.type=='unavailable-id'?'Room code '+code+' is already in use. Pick another code.':'Broker error: '+e.type));
+ pr.on('connection',conn=>{const id=conn.metadata&&conn.metadata.id;if(!/^[a-z0-9]{3,12}$/.test(id||'')||id==me)return conn.close();const old=peers[id];if(old&&old.dc)try{old.dc.close()}catch(e){}const d=pj(conn);wire(id,d);if(conn.open)d.onopen&&d.onopen()})};
+function joinRoom(keep){keep?leave(1):leave();online=1;host=0;leaving=0;br=1;const code=rcode();$('rc').value=code;if(!window.Peer)return stat('Room broker unavailable. Use Manual invite below.');stat('Connecting to room '+code+'…');
+ pr=new Peer({config:{iceServers:CONFIG.ice}});pr.on('error',e=>{if(e.type=='peer-unavailable'){stat('Room '+code+' not found');sfx('bad')}else stat('Broker error: '+e.type)});
+ pr.on('open',()=>{const c=pr.connect(pid(code),{reliable:true,serialization:'none',metadata:{id:me}}),d=pj(c);wire('host',d);if(c.open)d.onopen&&d.onopen()})}
+function rejoin(){if(leaving||host||retry++>5)return;setTimeout(()=>{if(!leaving&&!host&&online&&!(peers.host&&peers.host.dc&&peers.host.dc.readyState=='open'))joinRoom(1)},2000)}
+$('jn').onclick=()=>{nm();joinRoom(0)};
 $('ai').onclick=invite;$('ac2').onclick=accept;$('mk').onclick=mkReply;
 $('co').onclick=()=>{try{navigator.clipboard.writeText($('oc').value);stat('Invite link copied')}catch(e){$('oc').select()}};
 $('cr2').onclick=()=>{try{navigator.clipboard.writeText($('ra').value);stat('Reply copied')}catch(e){$('ra').select()}};
 $('so').onclick=()=>{if(navigator.share&&$('oc').value)navigator.share({title:'Chain Reaction',text:'Join my game',url:$('oc').value}).catch(()=>{});else $('co').click()};
 if(/#j=/.test(location.hash)){show('lobby');lobbyMode(0);$('ii').value=location.hash;stat('Invite loaded. Tap Create reply.')}
 $('rd').onclick=()=>send(peers.host,{t:'rdy'});$('sm').onclick=startMatch;
-$('cp').onclick=()=>{const c=$('rc').value;try{navigator.clipboard.writeText(c)}catch(e){}stat('Room label: '+c)};
+$('cp').onclick=()=>{const c=$('rc').value;try{navigator.clipboard.writeText(c)}catch(e){}stat('Room code copied: '+c)};
 $('lv').onclick=()=>{leave();show('lobby');stat('Left room')};
-function leave(keep){leaving=1;Object.values(peers).forEach(p=>{try{p.dc&&p.dc.close();p.pc&&p.pc.close()}catch(e){}});peers={};invs={};try{ws&&ws.close()}catch(e){}ws=null;if(!keep){online=0;host=0;G=null;busy=0;Q=[];$('pls').innerHTML='';stat('Not connected')}}
+function leave(keep){leaving=1;Object.values(peers).forEach(p=>{try{p.dc&&p.dc.close();p.pc&&p.pc.close()}catch(e){}});peers={};invs={};try{pr&&pr.destroy()}catch(e){}pr=null;try{ws&&ws.close()}catch(e){}ws=null;if(!keep){online=0;host=0;G=null;busy=0;Q=[];$('pls').innerHTML='';stat('Not connected')}}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&online&&!host)send(peers.host,{t:'sync'})});
 </script></body></html>
