@@ -242,6 +242,8 @@ function leave(keep){
   if(!keep){online=0;host=0;G=null;busy=0;Q=[];$('pls').innerHTML='';stat('Not connected')}
 }
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&online&&!host)send(peers.host,{t:'sync'})});
-</script></body></html>
+</script>
 
-```
+</body>
+
+</html>
