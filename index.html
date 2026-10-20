@@ -1,12 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-
     <!-- Google AdSense -->
     <meta name="google-adsense-account" content="ca-pub-7963880628277539">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7963880628277539" crossorigin="anonymous"></script>
-
 
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-PGR4Y0TVNP"></script>
@@ -42,23 +39,22 @@ input{width:min(280px,80vw);text-align:center}textarea{width:min(420px,85vw);hei
 <section id="menu" class="s on"><h1>CHAIN<br>REACTION</h1><button data-go="solo">Solo: Human vs Bot</button><button data-go="lobby">Online Multiplayer</button><button data-go="help">Settings &amp; How to Play</button></section>
 <section id="solo" class="s"><h2>Solo</h2><div class="row" id="dif"><button data-d="0">Easy</button><button data-d="1" class="sel">Medium</button><button data-d="2">Hard</button></div><button id="st">Start Game</button><button data-go="menu">Return to Menu</button></section>
 <section id="lobby" class="s"><h2>Online Lobby</h2><input id="nm" placeholder="Your name" maxlength="12" aria-label="Name"><input id="rc" value="CR6" maxlength="12" aria-label="Room code"><div class="row"><button id="cr">Host Room</button><button id="jn">Join with Room Code</button></div>
-<details id="adv"><summary>Manual invite (no broker)</summary><div id="hp" hidden><button id="ai">+ Invite player / reconnect</button><textarea id="oc" readonly placeholder="Invite link appears here"></textarea><div class="row"><button id="co">Copy link</button><button id="so">Share</button></div><textarea id="ia" placeholder="Paste the player's reply code"></textarea><button id="ac2">Accept reply</button></div>
-<div id="gp" hidden><textarea id="ii" placeholder="Paste the host's invite link or code"></textarea><button id="mk">Create reply</button><textarea id="ra" readonly placeholder="Your reply code appears here"></textarea><button id="cr2">Copy reply</button></div></details>
 <div id="stat">Not connected</div><div id="pls"></div><div class="row"><button id="rd">Ready</button><button id="sm">Start Match</button><button id="cp">Copy Code</button><button id="lv">Leave Room</button></div></section>
 <section id="game" class="s" style="justify-content:flex-start;gap:4px"><div id="hud"></div><div id="wrap"><canvas id="cv"></canvas></div><div id="info"></div><div class="row" style="padding-bottom:6px"><button id="rs">Restart</button><button data-go="menu">Menu</button></div></section>
 <section id="result" class="s"><h2 id="rt"></h2><div id="rl"></div><div id="rm"></div><div class="row"><button id="pa">Play Again</button><button data-go="menu">Return to Menu</button></div></section>
 <section id="help" class="s"><h2>Settings</h2><label>Music <input id="mv" type="range" min="0" max="1" step=".05"></label><label>Effects <input id="fv" type="range" min="0" max="1" step=".05"></label><label><input id="rm2" type="checkbox" style="width:auto;min-height:0"> Reduced motion</label>
-<div class="pad"><b>How to play:</b> tap an empty cell or one of your own to add an orb. Critical mass = number of neighbours: corners 2, edges 3, centre 4. At critical mass a cell explodes, sending one orb to each neighbour and converting them to your colour. Chains continue until stable. Eliminate everyone else to win.<br><b>Online:</b> run the signaling server (see README), enter its wss:// URL, then one player taps Create Room and the others Join with the same code (2–6 players). Host presses Start once everyone is ready.</div><button data-go="menu">Back</button></section>
+<div class="pad"><b>How to play:</b> tap an empty cell or one of your own to add an orb. Critical mass = number of neighbours: corners 2, edges 3, centre 4. At critical mass a cell explodes, sending one orb to each neighbour and converting them to your colour. Chains continue until stable. Eliminate everyone else to win.<br><b>Online:</b> enter a Room Code, then one player taps Host Room and the others Join with the same code (2–6 players). Host presses Start once everyone is ready.</div><button data-go="menu">Back</button></section>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 const $=i=>document.getElementById(i),R=9,C=6,COL=['#22e6ff','#ff3df2','#ffd23d','#7c5cff','#3dff9a','#ff6a3d'];
-const CONFIG={ice:[{urls:'stun:stun.l.google.com:19302'}]}; // add TURN: {urls:'turn:host',username:'u',credential:'p'}
+const CONFIG={ice:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun2.l.google.com:19302'}]};
 let S={mv:.5,fx:.7,rm:matchMedia('(prefers-reduced-motion:reduce)').matches,on:1};try{Object.assign(S,JSON.parse(localStorage.cr||'{}'))}catch(e){}
 const save=()=>{try{localStorage.cr=JSON.stringify(S)}catch(e){}};
-let scr='menu',G=null,view=[],online=0,host=0,diff=1,busy=0,Q=[],me='',ws,peers={},seq=0,seen=new Set(),leaving=0,retry=0,pend={},ping=0;
+let scr='menu',G=null,view=[],online=0,host=0,diff=1,busy=0,Q=[],me='',peers={},seq=0,seen=new Set(),leaving=0,retry=0,ping=0,pr=null;
 try{me=sessionStorage.crid||(sessionStorage.crid=Math.random().toString(36).slice(2,9))}catch(e){me=Math.random().toString(36).slice(2,9)}
 function show(id){scr=id;document.querySelectorAll('.s').forEach(e=>e.classList.toggle('on',e.id==id));if(id=='game')size();else if(id=='lobby')rl()}
+
 // ---------- audio ----------
 let AC,mg,fg;
 function ac(){if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)();mg=AC.createGain();fg=AC.createGain();mg.connect(AC.destination);fg.connect(AC.destination);vol();music()}catch(e){}}if(AC&&AC.state=='suspended')AC.resume();return AC}
@@ -67,6 +63,7 @@ function tone(f,d=.1,t='sine',v=.2,dest){const a=ac();if(!a)return;const o=a.cre
 const SFX={click:()=>tone(660,.06,'square',.08),place:()=>tone(440,.12,'sine',.2),boom:n=>{tone(110+Math.random()*40,.25,'sawtooth',.14);tone(300+n*70,.15,'triangle',.12)},bad:()=>tone(110,.2,'square',.15),win:()=>[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.3,'triangle',.2),i*120)),lose:()=>[392,330,262].forEach((f,i)=>setTimeout(()=>tone(f,.3,'sawtooth',.12),i*150)),join:()=>tone(880,.1,'sine',.15),lost:()=>tone(150,.4,'square',.12),ok:()=>tone(1000,.1,'sine',.15),bot:()=>tone(520,.1,'triangle',.15)};
 const sfx=(k,a)=>{try{SFX[k](a)}catch(e){}};
 function music(){const sc=[220,262,330,392,330,262];let i=0;setInterval(()=>{if(!AC||!S.on||document.hidden)return;const o=scr=='game'?1:.5;tone(sc[i%6]*o,.6,'sine',.12,mg);if(i%6==0)tone(sc[0]*o/2,1.8,'triangle',.12,mg);i++},360)}
+
 // ---------- rules ----------
 const nb=i=>{const r=i/C|0,c=i%C,a=[];r>0&&a.push(i-C);r<R-1&&a.push(i+C);c>0&&a.push(i-1);c<C-1&&a.push(i+1);return a},NB=[...Array(R*C)].map((_,i)=>nb(i)),cl=c=>c.map(x=>({...x})),fresh=()=>[...Array(R*C)].map(()=>({o:-1,n:0}));
 function sim(cells,i,p,chk){cells[i].o=p;cells[i].n++;const sn=[{c:cl(cells),ex:[]}];
@@ -78,11 +75,13 @@ function apply(i,pid){if(!G||G.phase!='play'||G.over||!(i>=0&&i<R*C))return null
  G.pl.forEach((q,k)=>{if(q.pl&&q.alive&&!G.cells.some(x=>x.o==k))q.alive=0});const al=G.pl.filter(q=>q.alive);
  if(al.length==1&&G.moves>=G.pl.length){G.over=1;G.phase='over';G.winner=G.pl.indexOf(al[0]);G.dur=Date.now()-G.t0}else nextTurn();return{sn,t}}
 function nextTurn(){for(let k=1;k<=G.pl.length;k++){const j=(G.turn+k)%G.pl.length;if(G.pl[j].alive&&G.pl[j].conn){G.turn=j;return}}}
+
 // ---------- animation queue ----------
 let parts=[];const enq=j=>{Q.push(j);busy||run()};
 function run(){const j=Q.shift();if(!j){busy=0;return}busy=1;let k=0;const st=()=>{const s=j.sn[k];view=s.c;if(!k)sfx(j.bot?'bot':'place');if(s.ex.length){sfx('boom',k);s.ex.forEach(e=>burst(e,j.col))}k++;if(k<j.sn.length)setTimeout(st,S.rm?50:230);else{j.cb();run()}};st()}
 function burst(e,col){const r=e/C|0,c=e%C;NB[e].forEach(n=>parts.push({a:[c,r],b:[n%C,n/C|0],t:0,col}));if(!S.rm)for(let i=0;i<8;i++)parts.push({a:[c,r],b:[c+(Math.random()-.5)*2,r+(Math.random()-.5)*2],t:0,col,s:1})}
 function afterMove(){hud();if(G.over){setTimeout(()=>{if(!Q.length&&G&&G.over)result()},800);return}if(!online&&G.pl[G.turn].id=='b')botTurn()}
+
 // ---------- rendering ----------
 const cv=$('cv'),cx=cv.getContext('2d');let cs=40,dpr=1;
 function size(){dpr=Math.min(devicePixelRatio||1,2);const w=$('wrap');cs=Math.max(20,Math.min(w.clientWidth/C,w.clientHeight/R));cv.style.width=cs*C+'px';cv.style.height=cs*R+'px';cv.width=cs*C*dpr;cv.height=cs*R*dpr}
@@ -97,12 +96,14 @@ requestAnimationFrame(draw);
 function hud(){if(!G)return;const orbs=k=>G.cells.reduce((s,c)=>s+(c.o==k?c.n:0),0);$('hud').innerHTML=G.pl.map((p,k)=>`<span class="chip${k==G.turn&&!G.over?' on':''}${p.alive?'':' dead'}" style="color:${p.color};border-color:${p.color}">${esc(p.name)}${p.conn?'':' ⚠'} · ${orbs(k)}</span>`).join('');
  const mine=G.pl[G.turn]&&G.pl[G.turn].id==(online?me:'h');$('info').textContent=(G.over?'Game over':!online&&G.pl[G.turn].id=='b'?'Bot is thinking…':mine?'Your turn':esc(G.pl[G.turn].name)+"'s turn")+' · Move '+G.moves+(online?' · '+(host?'Host':'Guest'):'')}
 const esc=s=>String(s).replace(/[<>&"]/g,'');
+
 // ---------- input ----------
 cv.addEventListener('pointerdown',e=>{e.preventDefault();ac();if(!G||G.over||busy||Q.length)return;const r=cv.getBoundingClientRect(),i=Math.floor((e.clientY-r.top)/cs)*C+Math.floor((e.clientX-r.left)/cs);
  if(Math.floor((e.clientX-r.left)/cs)>=C)return;const pid=online?me:'h';if(G.pl[G.turn].id!=pid||(G.cells[i].o>=0&&G.cells[i].o!=G.turn))return sfx('bad');
  if(!online||host)commit(i,pid);else send(peers.host,{t:'mv',i})});
 function commit(i,pid){const pre=G.cells,col=G.pl[G.turn].color,bot=pid=='b',r=apply(i,pid);if(!r)return false;
  enq({sn:r.sn,col,bot,cb:afterMove});if(online&&host){skipOff();bc({t:'snap',G,mv:{i,p:pid,t:r.t}})}return true}
+
 // ---------- bot ----------
 function botTurn(){const d=500+Math.random()*700;setTimeout(function w(){if(!G||G.over||online||scr!='game')return;if(busy||Q.length)return setTimeout(w,150);commit(botPick(),'b')},d)}
 function botPick(){const me=G.turn,mv=[];G.cells.forEach((c,i)=>(c.o<0||c.o==me)&&mv.push(i));if(!diff)return mv[Math.random()*mv.length|0];let best=mv[0],bs=-1e9;
@@ -110,77 +111,137 @@ function botPick(){const me=G.turn,mv=[];G.cells.forEach((c,i)=>(c.o<0||c.o==me)
   if(diff==1){s+=(c.o==me&&c.n+1==k?3:0)+(k==2?1.5:k==3?.5:0)+(c.o==me?c.n*.3:0)-(c.n+1<k&&NB[i].some(j=>{const d=G.cells[j];return d.o>=0&&d.o!=me&&d.n+1>=NB[j].length})?4:0)}
   else{const f=sim(cl(G.cells),i,me,G.moves+1>=2).pop().c;let a=0,b=0,th=0;f.forEach((x,j)=>{if(x.o==me)a+=x.n;else if(x.o>=0)b+=x.n;if(x.o==me&&NB[j].some(q=>f[q].o>=0&&f[q].o!=me&&f[q].n+1>=NB[q].length))th+=x.n});s+=a-b*1.2-th*.9+(b==0&&G.moves>0?999:0)+(k==2?.8:0)}
   if(s>bs){bs=s;best=i}});return best}
+
 // ---------- screens / flow ----------
 function startGame(){busy=0;Q=[];parts=[];view=cl(G.cells);show('game');hud();if(!online&&G.pl[G.turn].id=='b')botTurn()}
 function result(){const o=k=>G.cells.reduce((s,c)=>s+(c.o==k?c.n:0),0),w=G.pl[G.winner],won=w&&w.id==(online?me:'h');show('result');$('rt').textContent=(w?w.name:'Nobody')+' wins!';$('rt').style.color=w?w.color:'';sfx(won?'win':'lose');
- $('rl').innerHTML=G.pl.map((p,k)=>[k,o(k)]).sort((a,b)=>b[1]-a[1]).map(([k,n],i)=>`<div style="color:${G.pl[k].color}">${i+1}. ${esc(G.pl[k].name)} — ${n} orbs</div>`).join('');$('rm').textContent=`Moves: ${G.moves} · Time: ${Math.round((G.dur||0)/1000)}s`;$('pa').disabled=online&&!host;ws&&ws.readyState==1&&0}
+ $('rl').innerHTML=G.pl.map((p,k)=>[k,o(k)]).sort((a,b)=>b[1]-a[1]).map(([k,n],i)=>`<div style="color:${G.pl[k].color}">${i+1}. ${esc(G.pl[k].name)} — ${n} orbs</div>`).join('');$('rm').textContent=`Moves: ${G.moves} · Time: ${Math.round((G.dur||0)/1000)}s`;$('pa').disabled=online&&!host}
 function playAgain(){if(!online){newSolo();return}if(host)startMatch()}
 function newSolo(){G=newGame([{id:'h',name:'You'},{id:'b',name:'Bot'}]);startGame()}
 document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;ac();sfx('click');if(b.dataset.go){if(b.dataset.go=='menu')leave();show(b.dataset.go)}if(b.dataset.d){diff=+b.dataset.d;document.querySelectorAll('#dif button').forEach(x=>x.classList.toggle('sel',x==b))}});
 $('st').onclick=()=>{online=0;newSolo()};$('pa').onclick=playAgain;$('rs').onclick=()=>{if(!online)newSolo();else if(host)startMatch()};
-$('snd').onclick=()=>{S.on=!S.on;save();vol()};
-$('fs').onclick=()=>{const d=document,el=d.documentElement;try{if(!d.fullscreenElement&&!d.webkitFullscreenElement){const f=el.requestFullscreen||el.webkitRequestFullscreen;if(!f)return alert('Fullscreen unsupported here. On iOS use Share → Add to Home Screen.');Promise.resolve(f.call(el)).catch(()=>alert('Fullscreen was blocked.'))}else(d.exitFullscreen||d.webkitExitFullscreen).call(d)}catch(e){}};
+$('snd').onclick=()=>{S.on=!S.on;save();vol()};$('fs').onclick=()=>{const d=document,el=d.documentElement;try{if(!d.fullscreenElement&&!d.webkitFullscreenElement){const f=el.requestFullscreen||el.webkitRequestFullscreen;if(!f)return alert('Fullscreen unsupported here. On iOS use Share → Add to Home Screen.');Promise.resolve(f.call(el)).catch(()=>alert('Fullscreen was blocked.'))}else(d.exitFullscreen||d.webkitExitFullscreen).call(d)}catch(e){}};
 $('mv').value=S.mv;$('fv').value=S.fx;$('rm2').checked=S.rm;$('mv').oninput=e=>{S.mv=+e.target.value;save();vol()};$('fv').oninput=e=>{S.fx=+e.target.value;save()};$('rm2').onchange=e=>{S.rm=e.target.checked;save()};vol();
 try{$('nm').value=localStorage.crnm||''}catch(e){}
-// ---------- online: signaling + WebRTC ----------
+
+// ---------- online: PeerJS WebRTC ----------
 const stat=(m,ok)=>{$('stat').textContent=m;$('stat').style.color=ok?'#3dff9a':''};
-function send(p,m){try{if(p&&p.dc&&p.dc.readyState=='open'){m.id=Math.random().toString(36).slice(2);p.dc.send(JSON.stringify(m))}}catch(e){}}
+function send(p,m){try{if(p&&p.conn&&p.conn.open){m.id=Math.random().toString(36).slice(2);p.conn.send(m)}}catch(e){}}
 function bc(m){m.seq=++seq;Object.values(peers).forEach(p=>send(p,m))}
-// Serverless signaling: SDP (with ICE) is compressed into a short code/link shared by copy, share sheet or any chat app.
-let invs={},pr=null,br=0;
-const b64=u=>btoa(String.fromCharCode(...u)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-const pipe=async(d,T)=>new Uint8Array(await new Response(new Blob([d]).stream().pipeThrough(new T('deflate-raw'))).arrayBuffer());
-const enc=async o=>b64(await pipe(JSON.stringify(o),CompressionStream));
-const dec=async t=>{t=t.trim().replace(/^.*#j=/,'').replace(/-/g,'+').replace(/_/g,'/');return JSON.parse(new TextDecoder().decode(await pipe(Uint8Array.from(atob(t),c=>c.charCodeAt(0)),DecompressionStream)))};
-const gather=pc=>new Promise(r=>{if(pc.iceGatheringState=='complete')return r();const f=()=>{if(pc.iceGatheringState=='complete'){pc.removeEventListener('icegatheringstatechange',f);r()}};pc.addEventListener('icegatheringstatechange',f);setTimeout(r,4000)});
-function newPc(id){if(peers[id]&&peers[id].pc)try{peers[id].pc.close()}catch(e){}const pc=new RTCPeerConnection({iceServers:CONFIG.ice});peers[id]={pc,dc:null};
- pc.onconnectionstatechange=()=>{const s=pc.connectionState;if(!host)stat('Peer connection: '+s,s=='connected')};return pc}
-async function invite(){try{if(!window.RTCPeerConnection||!window.CompressionStream)return stat('This browser lacks WebRTC or CompressionStream');
- const off=G.pl.find(p=>!p.conn&&p.id!=me);if(!off&&G.pl.length+Object.keys(invs).length>=6)return stat('Room is full (6 players)');
- if(G.phase!='lobby'&&!off)return stat('Match in progress: only reconnect invites allowed');
- const id=off?off.id:'p'+Math.random().toString(36).slice(2,7),pc=newPc(id);wire(id,pc.createDataChannel('g',{ordered:true}));invs[id]=pc;stat('Creating invite…');
- await pc.setLocalDescription(await pc.createOffer());await gather(pc);const c=await enc({id,s:pc.localDescription});
- $('oc').value=location.origin+location.pathname+'#j='+c;stat('Send the link to a player, then paste their reply below',1)}catch(e){stat('Invite failed')}}
-async function accept(){try{const o=await dec($('ia').value),pc=invs[o.id];if(!pc)return stat('Unknown or expired reply');await pc.setRemoteDescription(o.s);delete invs[o.id];$('ia').value='';stat('Connecting to player…')}catch(e){stat('Invalid reply code');sfx('bad')}}
-async function mkReply(){try{const o=await dec($('ii').value);me=o.id;br=0;try{sessionStorage.crid=me}catch(e){}const pc=newPc('host');pc.ondatachannel=e=>wire('host',e.channel);
- await pc.setRemoteDescription(o.s);await pc.setLocalDescription(await pc.createAnswer());await gather(pc);$('ra').value=await enc({id:o.id,s:pc.localDescription});stat('Send this reply code back to the host',1)}catch(e){stat('Invalid invite code');sfx('bad')}}
-function wire(id,dc){const p=peers[id]||(peers[id]={});p.dc=dc;if(!host)peers.host=p;
- dc.onopen=()=>{retry=0;if(host){sfx('join')}else{stat('Connected to host (DataChannel open)',1);sfx('ok');send(p,{t:'hello',name:$('nm').value||'Player'})}};
- dc.onclose=()=>{if(host){const q=G&&G.pl.find(x=>x.id==id);if(q){q.conn=0;sfx('lost');if(G.phase=='lobby')G.pl=G.pl.filter(x=>x!=q);else skipOff();bc({t:'snap',G});rl();hud()}}else if(!leaving){stat('Connection lost'+(br?', rejoining…':'. Ask the host for a reconnect invite.'));sfx('lost');banner();br?rejoin():$('gp').hidden=0}};
- dc.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch{return}if(!m||typeof m.t!='string')return;if(seen.has(m.id))return;seen.add(m.id);if(seen.size>500)seen.clear();host?hostMsg(id,m):guestMsg(m)}}
+
+function wireConn(id, conn){
+  const p = peers[id] || (peers[id] = {});
+  p.conn = conn;
+  if(!host) peers.host = p;
+
+  conn.on('open', ()=>{
+    retry = 0;
+    if(host){
+      sfx('join');
+    } else {
+      stat('Connected to host', 1);
+      sfx('ok');
+      send(p, {t:'hello', name: $('nm').value || 'Player'});
+    }
+  });
+
+  conn.on('close', ()=>{
+    if(host){
+      const q = G && G.pl.find(x => x.id == id);
+      if(q){
+        q.conn = 0;
+        sfx('lost');
+        if(G.phase == 'lobby') G.pl = G.pl.filter(x => x != q);
+        else skipOff();
+        bc({t:'snap', G});
+        rl();
+        hud();
+      }
+    } else if(!leaving){
+      stat('Connection lost. Reconnecting…');
+      sfx('lost');
+      rejoin();
+    }
+  });
+
+  conn.on('data', (data)=>{
+    let m = data;
+    if(typeof data === 'string'){
+      try{ m = JSON.parse(data); }catch(e){ return; }
+    }
+    if(!m || typeof m.t != 'string') return;
+    if(seen.has(m.id)) return;
+    seen.add(m.id);
+    if(seen.size > 500) seen.clear();
+    host ? hostMsg(id, m) : guestMsg(m);
+  });
+}
+
 function hostMsg(id,m){const p=peers[id];if(m.t=='hello'){let q=G.pl.find(x=>x.id==id);if(q){q.conn=1;q.name=esc(m.name||q.name).slice(0,12);sfx('ok')}else if(G.phase=='lobby'&&G.pl.length<6)G.pl.push({id,name:esc(m.name||'Player').slice(0,12),color:COL[G.pl.length],ready:0,conn:1,alive:1});else return send(p,{t:'err',m:'Room full or match in progress'});bc({t:'snap',G});rl();hud()}
  else if(m.t=='rdy'){const q=G.pl.find(x=>x.id==id);if(q&&G.phase=='lobby'){q.ready=!q.ready;bc({t:'snap',G});rl()}}
  else if(m.t=='mv'){if(!commit(m.i,id))send(p,{t:'rej'})}
  else if(m.t=='sync')send(p,{t:'snap',G})}
 function guestMsg(m){if(m.t=='snap'||m.t=='mv'){const g=m.G;if(!g||(m.seq&&m.seq<=ping))return;ping=m.seq||ping;
-  if(m.t=='snap'&&m.mv&&G&&G.phase=='play'&&g.ver==G.ver+1&&!busy){const pre=cl(G.cells),col=G.pl[m.mv.t].color;G=g;enq({sn:sim(pre,m.mv.i,m.mv.t,G.moves>=G.pl.length),col,cb:afterMove})}else{const was=G;G=g;if(g.phase=='play'&&!Q.length&&!busy)view=cl(g.cells);else if(g.phase=='play'&&m.mv)view=cl(g.cells)}
+  if(m.t=='snap'&&m.mv&&G&&G.phase=='play'&&g.ver==G.ver+1&&!busy){const pre=cl(G.cells),col=G.pl[m.mv.t].color;G=g;enq({sn:sim(pre,m.mv.i,m.mv.t,G.moves>=G.pl.length),col,cb:afterMove})}else{G=g;if(g.phase=='play'&&!Q.length&&!busy)view=cl(g.cells);else if(g.phase=='play'&&m.mv)view=cl(g.cells)}
   if(G.phase=='play'&&scr!='game'){online=1;startGame()}else if(G.phase=='over'&&scr=='game'&&!busy&&!Q.length)result();else if(scr=='game')hud();rl()}
  else if(m.t=='rej')sfx('bad');else if(m.t=='err'){stat(m.m);sfx('bad')}}
 function startMatch(){if(!host||!G)return;const ok=G.pl.length>=2&&G.pl.every(p=>p.ready&&p.conn);if(!ok)return stat('Need 2–6 connected, ready players');G=newGame(G.pl);startGame();bc({t:'snap',G})}
 function skipOff(){if(G&&G.phase=='play'&&!G.over&&!G.pl[G.turn].conn)nextTurn()}
 function rl(){if(!G||!G.pl)return $('pls').innerHTML='';$('pls').innerHTML=G.pl.map((p,k)=>`<div><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${p.id==me?' (you)':''}${k==0?' ★host':''} · ${p.ready?'Ready':'Not ready'} · ${p.conn?'🟢':'🔴'}</div>`).join('');$('sm').style.display=host?'':'none';$('rd').style.display=host?'none':''}
-const lobbyMode=h=>{leave();online=1;host=h;$('hp').hidden=!h;$('gp').hidden=h;leaving=0};
-const rcode=()=>($('rc').value.toUpperCase().replace(/[^A-Z0-9]/g,'')||'CR6').slice(0,12),pid=c=>'chainrx-'+c.toLowerCase();
-function pj(conn){const d={get readyState(){return conn.open?'open':'closed'},send:x=>conn.send(x),close:()=>conn.close()};conn.on('open',()=>d.onopen&&d.onopen());conn.on('close',()=>d.onclose&&d.onclose());conn.on('error',()=>{});conn.on('data',x=>d.onmessage&&d.onmessage({data:x}));return d}
+const lobbyMode=h=>{leave();online=1;host=h;leaving=0};
+const rcode=()=>($('rc').value.toUpperCase().replace(/[^A-Z0-9]/g,'')||'CR6').slice(0,12),pid=c=>'chainrx-room-'+c.toLowerCase();
 const nm=()=>{try{localStorage.crnm=$('nm').value}catch(e){}return esc($('nm').value||'Player')};
-$('cr').onclick=()=>{lobbyMode(1);br=1;const code=rcode();$('rc').value=code;G={phase:'lobby',pl:[{id:me,name:nm(),color:COL[0],ready:1,conn:1,alive:1}],ver:0,cells:[],turn:0,moves:0};rl();
- if(!window.Peer)return stat('Room broker unavailable. Use Manual invite below.');stat('Opening room '+code+'…');
- pr=new Peer(pid(code),{config:{iceServers:CONFIG.ice}});pr.on('open',()=>stat('Room '+code+' is open. Share the code with friends.',1));
- pr.on('error',e=>stat(e.type=='unavailable-id'?'Room code '+code+' is already in use. Pick another code.':'Broker error: '+e.type));
- pr.on('connection',conn=>{const id=conn.metadata&&conn.metadata.id;if(!/^[a-z0-9]{3,12}$/.test(id||'')||id==me)return conn.close();const old=peers[id];if(old&&old.dc)try{old.dc.close()}catch(e){}const d=pj(conn);wire(id,d);if(conn.open)d.onopen&&d.onopen()})};
-function joinRoom(keep){keep?leave(1):leave();online=1;host=0;leaving=0;br=1;const code=rcode();$('rc').value=code;if(!window.Peer)return stat('Room broker unavailable. Use Manual invite below.');stat('Connecting to room '+code+'…');
- pr=new Peer({config:{iceServers:CONFIG.ice}});pr.on('error',e=>{if(e.type=='peer-unavailable'){stat('Room '+code+' not found');sfx('bad')}else stat('Broker error: '+e.type)});
- pr.on('open',()=>{const c=pr.connect(pid(code),{reliable:true,serialization:'none',metadata:{id:me}}),d=pj(c);wire('host',d);if(c.open)d.onopen&&d.onopen()})}
-function rejoin(){if(leaving||host||retry++>5)return;setTimeout(()=>{if(!leaving&&!host&&online&&!(peers.host&&peers.host.dc&&peers.host.dc.readyState=='open'))joinRoom(1)},2000)}
+
+$('cr').onclick=()=>{
+  lobbyMode(1);
+  const code=rcode();
+  $('rc').value=code;
+  G={phase:'lobby',pl:[{id:me,name:nm(),color:COL[0],ready:1,conn:1,alive:1}],ver:0,cells:[],turn:0,moves:0};
+  rl();
+  if(!window.Peer) return stat('PeerJS not loaded. Check connection.');
+  stat('Opening room '+code+'…');
+  pr=new Peer(pid(code),{config:{iceServers:CONFIG.ice}});
+  pr.on('open',()=>stat('Room '+code+' is open. Share the code with friends!',1));
+  pr.on('error',e=>stat(e.type=='unavailable-id'?'Room code '+code+' is taken. Pick another code.':'Error: '+e.type));
+  pr.on('connection',conn=>{
+    const id=conn.metadata&&conn.metadata.id;
+    if(!id || id==me) return conn.close();
+    wireConn(id, conn);
+  });
+};
+
+function joinRoom(keep){
+  if(!keep) leave();
+  online=1;host=0;leaving=0;
+  const code=rcode();
+  $('rc').value=code;
+  if(!window.Peer) return stat('PeerJS not loaded. Check connection.');
+  stat('Connecting to room '+code+'…');
+  pr=new Peer({config:{iceServers:CONFIG.ice}});
+  pr.on('error',e=>{
+    if(e.type=='peer-unavailable'){stat('Room '+code+' not found');sfx('bad')}
+    else stat('Connection error: '+e.type);
+  });
+  pr.on('open',()=>{
+    const c=pr.connect(pid(code),{reliable:true, metadata:{id:me}});
+    wireConn('host', c);
+  });
+}
+
+function rejoin(){if(leaving||host||retry++>5)return;setTimeout(()=>{if(!leaving&&!host&&online&&!(peers.host&&peers.host.conn&&peers.host.conn.open))joinRoom(1)},2000)}
 $('jn').onclick=()=>{nm();joinRoom(0)};
-$('ai').onclick=invite;$('ac2').onclick=accept;$('mk').onclick=mkReply;
-$('co').onclick=()=>{try{navigator.clipboard.writeText($('oc').value);stat('Invite link copied')}catch(e){$('oc').select()}};
-$('cr2').onclick=()=>{try{navigator.clipboard.writeText($('ra').value);stat('Reply copied')}catch(e){$('ra').select()}};
-$('so').onclick=()=>{if(navigator.share&&$('oc').value)navigator.share({title:'Chain Reaction',text:'Join my game',url:$('oc').value}).catch(()=>{});else $('co').click()};
-if(/#j=/.test(location.hash)){show('lobby');lobbyMode(0);$('ii').value=location.hash;stat('Invite loaded. Tap Create reply.')}
 $('rd').onclick=()=>send(peers.host,{t:'rdy'});$('sm').onclick=startMatch;
-$('cp').onclick=()=>{const c=$('rc').value;try{navigator.clipboard.writeText(c)}catch(e){}stat('Room code copied: '+c)};
-$('lv').onclick=()=>{leave();show('lobby');stat('Left room')};
-function leave(keep){leaving=1;Object.values(peers).forEach(p=>{try{p.dc&&p.dc.close();p.pc&&p.pc.close()}catch(e){}});peers={};invs={};try{pr&&pr.destroy()}catch(e){}pr=null;try{ws&&ws.close()}catch(e){}ws=null;if(!keep){online=0;host=0;G=null;busy=0;Q=[];$('pls').innerHTML='';stat('Not connected')}}
+$('cp').onclick=()=>{const c=$('rc').value;try{navigator.clipboard.writeText(c)}catch(e){}stat('Room code copied: '+c)};$('lv').onclick=()=>{leave();show('lobby');stat('Left room')};
+
+function leave(keep){
+  leaving=1;
+  Object.values(peers).forEach(p=>{try{p.conn&&p.conn.close()}catch(e){}});
+  peers={};
+  try{pr&&pr.destroy()}catch(e){}
+  pr=null;
+  if(!keep){online=0;host=0;G=null;busy=0;Q=[];$('pls').innerHTML='';stat('Not connected')}
+}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&online&&!host)send(peers.host,{t:'sync'})});
 </script></body></html>
+
+```
